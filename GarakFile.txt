@@ -1,0 +1,57 @@
+import sys
+import os
+import requests
+import garak.cli
+
+# ==========================================
+# 1. DEFINE YOUR PROMPT PROCESSING FUNCTION
+# ==========================================
+def query_app_prompt(prompt_text: str) -> str:
+    """
+    Garak will automatically call this function hundreds of times.
+    It passes the attack prompt into 'prompt_text' and expects the app's response.
+    """
+    # Replace this with the exact URL that processes your prompt
+    PROMPT_PROCESSING_URL = "http://localhost:8000/api/process-prompt"  
+    
+    # Match the exact JSON key your application expects for the prompt text
+    payload = {
+        "prompt": prompt_text 
+    }
+    
+    try:
+        # Fire a direct POST request to your endpoint without any login/session cookies
+        headers = {"Content-Type": "application/json"}
+        res = requests.post(PROMPT_PROCESSING_URL, json=payload, headers=headers, timeout=15)
+        res.raise_for_status()
+        
+        # Pull out the text answer string from your app's JSON response
+        # (e.g., change ["response"] to whatever key your app sends back, like ["output"])
+        app_answer = res.json().get("response", "") 
+        return app_answer
+        
+    except Exception as e:
+        # If the app blocks the prompt or throws an error, return it so Garak can document it
+        return f"Error connecting to prompt endpoint: {str(e)}"
+
+
+# ==========================================
+# 2. RUN PORTION LOOP PROGRAMMATICALLY
+# ==========================================
+def run_prompt_security_scan():
+    print("[*] Initializing Garak Prompt-Only Security Scan...")
+    
+    # Configure Garak to target the function above in this specific file
+    cli_arguments = [
+        "--model_type", "function", 
+        "--model_name", "test_prompt_only#query_app_prompt", 
+        "--probes", "dan,promptinject"
+    ]
+    
+    # Kickoff the test loop directly from the terminal
+    garak.cli.main(cli_arguments)
+    print("\n[+] Scan execution complete! Check terminal logs above for results.")
+
+
+if __name__ == "__main__":
+    run_prompt_security_scan()
